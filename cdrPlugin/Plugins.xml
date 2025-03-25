@@ -1,0 +1,5 @@
+﻿<sharpPlugins>
+  <add key="CDR" value="SDRSharp.CDR.CDRPlugin,SDRSharp.CDR" />
+  <!--   Name                Class Name          NameSpace  -->
+
+</sharpPlugins>
