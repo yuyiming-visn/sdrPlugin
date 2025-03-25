@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -94,25 +95,25 @@ namespace SDRSharp.CDR
                 fixed (Complex* buffer = subFrame, cdrBuffer = cdrframe)
                 {
                     readLength = _iqStream.Read(buffer, 0, subFrameLength);
-                    cdrFrameLength = Resample (buffer, readLength, cdrBuffer);
-                }
-                Debug.WriteLine("CDRProcessor: Read {0},   Reasmaple {1},    Remain {2},", readLength, cdrFrameLength,  _iqStream.Length);
+                    cdrFrameLength = Resample(buffer, readLength, cdrBuffer);
 
-                error = CDRDemodCaller.CDRDemodulation_Process(cdrDemod, cdrframe, cdrFrameLength);
-                if (error != 0) 
-                {
-                    int num_Programme = CDRDemodCaller.CDRDemodulation_GetNumOfPrograms(cdrDemod);
-                    for (int i = 0; i < num_Programme; i++)
+                    Debug.WriteLine("CDRProcessor: Read {0},   Reasmaple {1},    Remain {2},", readLength, cdrFrameLength, _iqStream.Length);
+
+                    error = CDRDemodCaller.CDRDemodulation_Process(cdrDemod, cdrBuffer, cdrFrameLength);
+                    if (error != 0)
                     {
-                        int tempLength = 0;
-                        IntPtr tempStream = CDRDemodCaller.CDRDemodulation_GetDraStream(cdrDemod, i, ref tempLength);
-                        if (tempLength > 0)
+                        int num_Programme = CDRDemodCaller.CDRDemodulation_GetNumOfPrograms(cdrDemod);
+                        for (int i = 0; i < num_Programme; i++)
                         {
-                            error = CDRDemodCaller.draDecoder_Proccess(draDecoder[i], tempStream, tempLength);
-                            if (error != 0)
-                            { 
-                                IntPtr tempWave = CDRDemodCaller.draDecoder_GetAudioStream(draDecoder[i], ref tempLength);
-                                CDRDemodCaller.wav_WriteShort(, tempWave, tempLength);
+                            int tempLength = 0;
+                            IntPtr tempStream = CDRDemodCaller.CDRDemodulation_GetDraStream(cdrDemod, i, ref tempLength);
+                            if (tempLength > 0)
+                            {
+                                error = CDRDemodCaller.draDecoder_Proccess(draDecoder[i], tempStream, tempLength);
+                                if (error != 0)
+                                {
+                                    IntPtr tempWave = CDRDemodCaller.draDecoder_GetAudioStream(draDecoder[i], ref tempLength);
+                                }
                             }
                         }
                     }
@@ -153,7 +154,7 @@ namespace SDRSharp.CDR
         }
     }
 
-    public class CDRDemodCaller
+    public unsafe class CDRDemodCaller
     {
         private const string dllPath = @"libcdrRelease.dll";
 
@@ -175,7 +176,7 @@ namespace SDRSharp.CDR
         public static extern IntPtr CDRDemodulation_Init();
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
-        public static extern int CDRDemodulation_Process(IntPtr handle, IntPtr iq, int length);
+        public static extern int CDRDemodulation_Process(IntPtr handle, Complex *iq, int length);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern IntPtr CDRDemodulation_GetDraStream(IntPtr handle, int channel, ref int length);
@@ -188,13 +189,13 @@ namespace SDRSharp.CDR
         public static extern int CDRDemodulation_GetNumOfPrograms(IntPtr handle);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
-        public static extern QamType CDRDemodulation_SDISModType(IntPtr handle);
+        public static extern QamType CDRDemodulation_GetSDISModType(IntPtr handle);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
-        public static extern QamType CDRDemodulation_MSDSModType(IntPtr handle);
+        public static extern QamType CDRDemodulation_GetMSDSModType(IntPtr handle);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
-        public static extern LDPCRate CDRDemodulation_LDPCRate1(IntPtr handle);
+        public static extern LDPCRate CDRDemodulation_GetLDPCRate1(IntPtr handle);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern void CDRDemodulation_SetTransferMode(IntPtr handle, TransmissionMode transferMode);
