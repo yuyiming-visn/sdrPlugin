@@ -41,6 +41,7 @@ namespace SDRSharp.CDR
 
         private void checkBox_enable_CheckedChanged(object sender, EventArgs e)
         {
+            checkBox_IQRecord.Checked = false;
             _processor.Enabled = checkBox_enable.Checked;
         }
 
@@ -66,6 +67,11 @@ namespace SDRSharp.CDR
             // 清空上一个节目的音频缓存
             // AudioStop();
             // AudioStart();
+        }
+
+        private void checkBox_IQRecord_CheckedChanged(object sender, EventArgs e)
+        {
+            _processor.IQRecordEnable = checkBox_IQRecord.Checked;
         }
     }
 }

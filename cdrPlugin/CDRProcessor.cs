@@ -1,85 +1,130 @@
-﻿using System;
+﻿// #define cdrDemod
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+
 using SDRSharp.Common;
 using SDRSharp.PanView;
 using SDRSharp.Radio;
+
 
 namespace SDRSharp.CDR
 {
     public class CDRProcessor : IIQProcessor
     {
-        private const int ProcessorInterval = 100;
-        private const int FifoLength = 10000000;
-
-        private const double SubFrameTime = 0.16;
-        private double _currentSampleRate = 0;
-        private const double CDRSampleRate = 816000;
-
         private readonly ISharpControl _control;
         private Timer _processorTimer;
 
+        private const int ProcessorInterval = 100;
+        private const int FifoLength = 10000000;
         private readonly ComplexFifoStream _iqStream;
 
+        private double _currentSampleRate = 0;
+        private long _currentFrequency = 0;
+
+        private const double SubFrameTime = 0.16;
+        private const double CDRSampleRate = 816000;
+
+        private bool _reset_Demod;
+        private FileWriter _iqWriter;
+#if cdrDemod
         private IntPtr cdrDemod;
         private IntPtr[] draDecoder = new IntPtr [3];
-
+#endif
 
         public CDRProcessor(ISharpControl control)
         {
             _control = control;
 
+            _processorTimer = new Timer();
+            _processorTimer.Tick += processorTimer_Tick;
+            _processorTimer.Interval = ProcessorInterval;
+            _processorTimer.Enabled = false;
+
+            _iqStream = new ComplexFifoStream(BlockMode.None);
+
+            _iqWriter = new FileWriter();
+#if cdrDemod
             cdrDemod = CDRDemodCaller.CDRDemodulation_Init();
             for (int i = 0; i < draDecoder.Length; i++)
             {
                 draDecoder[i] = CDRDemodCaller.draDecoder_Init();
             }
-
-
-            #region FFT Timer
-
-            _processorTimer = new Timer();
-            _processorTimer.Tick += processorTimer_Tick;
-            _processorTimer.Interval = ProcessorInterval;
-
-            #endregion
-
-            #region Buffers
-
-            _iqStream = new ComplexFifoStream(BlockMode.None);
-
-            // InitFFTBuffers();
-            // BuildFFTWindow();
-
-            #endregion
+#endif
 
             _control.RegisterStreamHook(this, ProcessorType.RawIQ);
-            _processorTimer.Enabled = true;
-
         }
 
-        public bool Enabled { get; set; }
+        private bool _iqRecordEnable;
+        public bool IQRecordEnable 
+        {
+            get
+            {
+                return _iqRecordEnable;
+            } 
+            set
+            {
+                _iqRecordEnable = value;
+                if (!_iqRecordEnable)
+                {
+                    _iqWriter.CloseFile();
+                }
+                else 
+                { 
+                    _iqWriter.Reset(_currentSampleRate, _currentFrequency); 
+                }
+            }
+        }
+
+        private bool _processorEnable;
+        public bool Enabled 
+        {
+            get
+            {
+                return _processorEnable;
+            }
+            set
+            { 
+                _processorEnable = value;
+                _processorTimer.Enabled = _processorEnable;
+                _reset_Demod |= _processorEnable;
+            } 
+        }
 
         public double SampleRate { get; set; }
 
         public unsafe void Process(Complex* buffer, int length)
         {
-            if (_currentSampleRate != SampleRate)
+            if (!_processorEnable)
             {
-                _iqStream.Flush();
+                return;
+            }
+
+            if (_currentSampleRate != SampleRate || _currentFrequency != _control.Frequency)
+            {
                 _currentSampleRate = SampleRate;
+                _currentFrequency = _control.Frequency;
+                _reset_Demod = true;
+
+                _iqStream.Flush();
+                if (IQRecordEnable)
+                {
+                    _iqWriter.Reset(_currentSampleRate, _currentFrequency);
+                }
             }
 
             _iqStream.Write(buffer, length);
 
+
             //Debug.WriteLine("CDRProcessor: Write Remain {0} samples", _iqStream.Length);
-            //Debug.WriteLine("CDRProcessor: SampleRate {0}", SampleRate);
         }
 
         public unsafe void processorTimer_Tick(object sender, EventArgs e)
@@ -98,7 +143,14 @@ namespace SDRSharp.CDR
                     cdrFrameLength = Resample(buffer, readLength, cdrBuffer);
 
                     Debug.WriteLine("CDRProcessor: Read {0},   Reasmaple {1},    Remain {2},", readLength, cdrFrameLength, _iqStream.Length);
-
+                    _reset_Demod = false;
+                    if (IQRecordEnable)
+                    {
+                        // _iqWriter.WriteData(cdrframe, cdrFrameLength);
+                        _iqWriter.WriteData(subFrame, readLength);
+                    }
+#if cdrDemod
+                    
                     error = CDRDemodCaller.CDRDemodulation_Process(cdrDemod, cdrBuffer, cdrFrameLength);
                     if (error != 0)
                     {
@@ -117,7 +169,9 @@ namespace SDRSharp.CDR
                             }
                         }
                     }
-                }
+
+#endif
+                    }
             }
         }
 
@@ -154,6 +208,151 @@ namespace SDRSharp.CDR
         }
     }
 
+    public class FileWriter : IDisposable
+    {
+        private FileStream _fileStream;
+        private string _filePath;
+        public static string GenerateFileName(double sampleRate, long frequency)
+        {
+            // 获取当前时间戳
+            string timestamp = DateTime.Now.ToString("yyyy_MMdd_HHmmss");
+
+            // 获取当前目录
+            string currentDirectory = Directory.GetCurrentDirectory();
+
+            // 构造文件名
+            string fileName = $"{timestamp}_fr_{frequency}_Sa_{(int)(sampleRate)}.bin";
+
+            // 组合当前目录和文件名
+            string fullPath = Path.Combine(currentDirectory, fileName);
+
+            return fullPath;
+        }
+
+        public FileWriter()
+        {
+        }
+
+        public void Reset(double sampleRate, long frequency)
+        {
+            CloseFile();
+            OpenFile(GenerateFileName(sampleRate, frequency));
+        }
+
+        public void OpenFile(string filePath)
+        {
+            try
+            {
+                _filePath = filePath;
+                _fileStream = new FileStream(_filePath, FileMode.Create, FileAccess.Write);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"打开文件时发生错误: {ex.Message}");
+            }
+        }
+
+        public unsafe void WriteData(Complex[] subFrame, int validLength)
+        {
+            if (_fileStream == null || !_fileStream.CanWrite)
+            {
+                Console.WriteLine("文件未打开或不可写，无法写入数据。");
+                return;
+            }
+
+            try
+            {                
+                byte[] buffer = new byte[validLength * 4];
+                short i_data = 0;
+                short q_data = 0;
+                byte* ptr_i = (byte*)(&i_data);
+                byte* ptr_q = (byte*)(&q_data);
+                fixed (byte* ptr_byte = buffer)
+                {
+                    byte* ptr = ptr_byte;
+                    for (int i = 0; i < validLength; i++)
+                    {
+                        i_data = (short)(subFrame[i].Real * 32768);
+                        q_data = (short)(subFrame[i].Imag * 32768);
+                        *ptr = *ptr_i;
+                        ptr++;
+                        *ptr = *(ptr_i+1);
+                        ptr++;
+                        *ptr = *ptr_q;
+                        ptr++;
+                        *ptr = *(ptr_q + 1);
+                        ptr++;
+                    }
+                }
+                _fileStream.Write(buffer, 0, buffer.Length);
+
+#if _floatFile
+
+                int length = subFrame.Length;
+                int complexSize = sizeof(Complex);
+
+                int byteCount = length * complexSize;
+                byte[] buffer = new byte[byteCount];
+                fixed (Complex* ptr = subFrame)
+                {
+                    byte* bytePtr = (byte*)ptr;
+                    for (int i = 0; i < byteCount; i++)
+                    {
+                        buffer[i] = *bytePtr;
+                        bytePtr++;
+                    }
+                }
+
+
+                _fileStream.Write(buffer, 0, byteCount);
+#endif
+                Console.WriteLine("数据已成功写入文件。");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"写入文件时发生错误: {ex.Message}");
+            }
+        }
+
+        public void CloseFile()
+        {
+            if (_fileStream != null)
+            {
+                try
+                {
+                    _fileStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"关闭文件时发生错误: {ex.Message}");
+                }
+                finally
+                {
+                    _fileStream.Dispose();
+                    _fileStream = null;
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                CloseFile();
+            }
+        }
+    }
+
+
+
+
+#if cdrDemod
     public unsafe class CDRDemodCaller
     {
         private const string dllPath = @"libcdrRelease.dll";
@@ -250,5 +449,5 @@ namespace SDRSharp.CDR
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern void wav_SetSampleRate(IntPtr handle, int samplerate);
     }
-
+#endif
 }

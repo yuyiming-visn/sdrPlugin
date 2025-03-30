@@ -40,8 +40,8 @@
             this.radioButton_Prog1 = new System.Windows.Forms.RadioButton();
             this.radioButton_Prog0 = new System.Windows.Forms.RadioButton();
             this.label4 = new System.Windows.Forms.Label();
-            this.label5 = new System.Windows.Forms.Label();
             this.checkBox_IQRecord = new System.Windows.Forms.CheckBox();
+            this.label5 = new System.Windows.Forms.Label();
             this.checkBox_AudioRecord = new System.Windows.Forms.CheckBox();
             this.mainTableLayoutPanel.SuspendLayout();
             this.groupBox_programSelector.SuspendLayout();
@@ -202,15 +202,6 @@
             this.label4.TabIndex = 4;
             this.label4.Text = "录制IQ";
             // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(3, 174);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(53, 12);
-            this.label5.TabIndex = 4;
-            this.label5.Text = "录制音频";
-            // 
             // checkBox_IQRecord
             // 
             this.checkBox_IQRecord.AutoSize = true;
@@ -219,6 +210,16 @@
             this.checkBox_IQRecord.Size = new System.Drawing.Size(15, 14);
             this.checkBox_IQRecord.TabIndex = 6;
             this.checkBox_IQRecord.UseVisualStyleBackColor = true;
+            this.checkBox_IQRecord.CheckedChanged += new System.EventHandler(this.checkBox_IQRecord_CheckedChanged);
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(3, 174);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(53, 12);
+            this.label5.TabIndex = 4;
+            this.label5.Text = "录制音频";
             // 
             // checkBox_AudioRecord
             // 
