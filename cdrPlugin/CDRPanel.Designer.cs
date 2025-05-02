@@ -229,6 +229,7 @@
             this.checkBox_AudioRecord.Size = new System.Drawing.Size(15, 14);
             this.checkBox_AudioRecord.TabIndex = 6;
             this.checkBox_AudioRecord.UseVisualStyleBackColor = true;
+            this.checkBox_AudioRecord.CheckedChanged += new System.EventHandler(this.checkBox_AudioRecord_CheckedChanged);
             // 
             // CDRPanel
             // 

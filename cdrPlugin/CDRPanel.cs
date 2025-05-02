@@ -73,5 +73,10 @@ namespace SDRSharp.CDR
         {
             _processor.IQRecordEnable = checkBox_IQRecord.Checked;
         }
+
+        private void checkBox_AudioRecord_CheckedChanged(object sender, EventArgs e)
+        {
+            _processor.WavRecordEnable = checkBox_AudioRecord.Checked; 
+        }
     }
 }
