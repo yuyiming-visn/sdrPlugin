@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -19,29 +20,30 @@ using SDRSharp.Radio;
 
 namespace SDRSharp.CDR
 {
-    public class CDRProcessor : IIQProcessor, IDisposable
+    public class CDRProcessor : IRealProcessor, IIQProcessor, IDisposable
     {
         private readonly ISharpControl _control;
-        private Timer _processorTimer;
 
         private const int ProcessorInterval = 100;
-        private const int FifoLength = 10000000;
-        private readonly ComplexFifoStream _iqStream;
-
-        private double _currentSampleRate = 0;
-        private long _currentFrequency = 0;
+        private Timer _iq_Timer;
+        private readonly ComplexFifoStream _iq_Stream;
+        private Timer _audio_Timer;
+        private readonly FloatFifoStream _audio_Stream;
 
         private const double SubFrameTime = 0.16;
         private const double CDRSampleRate = 816000;
 
         private bool _reset_Demod;
 
-        private IntPtr _iqWriter;
+        private IntPtr _cdr_iqWriter;
+        private IntPtr _cdr_Demod;
+        private IntPtr[] _dra_Decoder = new IntPtr[3];
+        private IntPtr[] _dra_waveFile = new IntPtr[3];
+        private string[] _dra_waveName = new string[3];
 
-        private IntPtr cdrDemod;
-        private IntPtr[] draDecoder = new IntPtr[3];
-        private IntPtr[] draWave = new IntPtr[3];
-        private string[] waveFile = new string[3];
+        private IntPtr _iq_filter;
+        private IntPtr _audio_filter;
+        private float _filter_attenuation = 60.0f;
 
         public void Dispose()
         {
@@ -53,49 +55,81 @@ namespace SDRSharp.CDR
         {
             if (disposing)
             {
-                for (int i = 0; i < draWave.Length; i++)
+                for (int i = 0; i < _dra_waveFile.Length; i++)
                 {
-                    if (draWave[i] != IntPtr.Zero && draWave[i] != null)
+                    if (_dra_waveFile[i] != IntPtr.Zero && _dra_waveFile[i] != null)
                     {
-                        CDRDemodCaller.wav_CloseFile(draWave[i]);
-                        draWave[i] = IntPtr.Zero;
+                        CDRDemodCaller.wav_CloseFile(_dra_waveFile[i]);
+                        _dra_waveFile[i] = IntPtr.Zero;
                     }
                 }
 
-                if (_iqWriter != IntPtr.Zero && _iqWriter != null)
+                if (_cdr_iqWriter != IntPtr.Zero && _cdr_iqWriter != null)
                 {
-                    CDRDemodCaller.wav_CloseFile(_iqWriter);
-                    _iqWriter = IntPtr.Zero;
+                    CDRDemodCaller.wav_CloseFile(_cdr_iqWriter);
+                    _cdr_iqWriter = IntPtr.Zero;
                 }
 
-                for (int i = 0; i < draDecoder.Length; i++)
+                for (int i = 0; i < _dra_Decoder.Length; i++)
                 {
-                    CDRDemodCaller.draDecoder_Release(draDecoder[i]);
+                    CDRDemodCaller.draDecoder_Release(_dra_Decoder[i]);
                 }
 
-                CDRDemodCaller.CDRDemodulation_Release(cdrDemod);
+                CDRDemodCaller.CDRDemodulation_Release(_cdr_Demod);
+
+                if (_iq_filter != IntPtr.Zero && _iq_filter != null)
+                {
+                    LiquidDspCaller.msresamp_cccf_destroy(_iq_filter);
+                    _iq_filter = IntPtr.Zero;
+                }
+
+                if (_audio_filter != IntPtr.Zero && _audio_filter != null)
+                {
+                    LiquidDspCaller.msresamp_cccf_destroy(_audio_filter);
+                    _audio_filter = IntPtr.Zero;
+                }
             }
         }
 
         public CDRProcessor(ISharpControl control)
         {
-            _control = control;
+            _iq_filter = IntPtr.Zero;
+            _audio_filter = IntPtr.Zero;
 
-            _processorTimer = new Timer();
-            _processorTimer.Tick += processorTimer_Tick;
-            _processorTimer.Interval = ProcessorInterval;
-            _processorTimer.Enabled = false;
 
-            _iqStream = new ComplexFifoStream(BlockMode.None);
-
-            cdrDemod = CDRDemodCaller.CDRDemodulation_Init();
-            for (int i = 0; i < draDecoder.Length; i++)
+            _cdr_Demod = CDRDemodCaller.CDRDemodulation_Init();
+            for (int i = 0; i < _dra_Decoder.Length; i++)
             {
-                draDecoder[i] = CDRDemodCaller.draDecoder_Init();
-                draWave [i] = IntPtr.Zero;
+                _dra_Decoder[i] = CDRDemodCaller.draDecoder_Init();
+                _dra_waveFile[i] = IntPtr.Zero;
             }
 
+            _control = control;
+
+            _iq_Timer = new Timer();
+            _iq_Timer.Tick += iq_TimerTick;
+            _iq_Timer.Interval = ProcessorInterval;
+            _iq_Timer.Enabled = false;
+            _iq_Stream = new ComplexFifoStream(BlockMode.None);
+
+
+            _audio_Timer = new Timer();
+            _audio_Timer.Tick += audio_TimerTick;
+            _audio_Timer.Interval = ProcessorInterval;
+            _audio_Timer.Enabled = false;
+            // _control.AudioSampleRate = 24000;
+            _audio_Stream = new FloatFifoStream(BlockMode.None);
+
+            _control.RegisterStreamHook(this, ProcessorType.FilteredAudioOutput);
             _control.RegisterStreamHook(this, ProcessorType.RawIQ);
+        }
+
+
+        private CDRPanel _cdr_UI;
+        public CDRPanel CDR_UI
+        {
+            set { _cdr_UI = value; }
+            get { return _cdr_UI; }
         }
 
         private bool _iqRecordEnable;
@@ -108,10 +142,10 @@ namespace SDRSharp.CDR
             set
             {
                 _iqRecordEnable = value;
-                if (_iqWriter != IntPtr.Zero && _iqWriter != null)
+                if (_cdr_iqWriter != IntPtr.Zero && _cdr_iqWriter != null)
                 {
-                    CDRDemodCaller.wav_CloseFile(_iqWriter);
-                    _iqWriter = IntPtr.Zero;
+                    CDRDemodCaller.wav_CloseFile(_cdr_iqWriter);
+                    _cdr_iqWriter = IntPtr.Zero;
                 }
 
                 if (_iqRecordEnable && _processorEnable)
@@ -128,7 +162,7 @@ namespace SDRSharp.CDR
                     // 组合当前目录和文件名
                     string fullPath = Path.Combine(currentDirectory, fileName);
 
-                    _iqWriter = CDRDemodCaller.wav_CreateFile(fullPath, 2, (int)CDRSampleRate, 16);
+                    _cdr_iqWriter = CDRDemodCaller.wav_CreateFile(fullPath, 2, (int)CDRSampleRate, 16);
                 }
             }
         }
@@ -144,12 +178,12 @@ namespace SDRSharp.CDR
             {
                 _wavRecordEnable = value;
 
-                for (int i = 0; i < draWave.Length; i++)
+                for (int i = 0; i < _dra_waveFile.Length; i++)
                 {
-                    if (draWave[i] != IntPtr.Zero && draWave[i] != null)
+                    if (_dra_waveFile[i] != IntPtr.Zero && _dra_waveFile[i] != null)
                     {
-                        CDRDemodCaller.wav_CloseFile(draWave[i]);
-                        draWave[i] = IntPtr.Zero;
+                        CDRDemodCaller.wav_CloseFile(_dra_waveFile[i]);
+                        _dra_waveFile[i] = IntPtr.Zero;
                     }
                 }
 
@@ -159,13 +193,13 @@ namespace SDRSharp.CDR
                     string timestamp = DateTime.Now.ToString("yyyy_MMdd_HHmmss");
                     // 获取当前目录
                     string currentDirectory = Directory.GetCurrentDirectory();
-                    for (int i = 0; i < draWave.Length; i++)
+                    for (int i = 0; i < _dra_waveFile.Length; i++)
                     {
                         // 构造文件名
                         string fileName = $"audio_{timestamp}_CH{i}.wav";
                         // 组合当前目录和文件名
                         string fullPath = Path.Combine(currentDirectory, fileName);
-                        draWave[i] = CDRDemodCaller.wav_CreateFile(fullPath, 1, 24000, 16);
+                        _dra_waveFile[i] = CDRDemodCaller.wav_CreateFile(fullPath, 1, 24000, 16);
                     }
                 }
             }
@@ -181,13 +215,46 @@ namespace SDRSharp.CDR
             set
             {
                 _processorEnable = value;
-                _processorTimer.Enabled = _processorEnable;
+                _iq_Timer.Enabled = _processorEnable;
                 _reset_Demod |= _processorEnable;
             }
         }
 
-        public double SampleRate { get; set; }
+        private double _currentSampleRate = 0;
+        private long _currentFrequency = 0;
 
+        private double _iq_SampleRate;
+        public double SampleRate
+        {
+            get { return _iq_SampleRate; }
+            set
+            {
+                if (value != _control.AudioSampleRate)
+                    _iq_SampleRate = value;
+                Debug.WriteLine("SampleRate: {0}, audio {1}", _iq_SampleRate, _control.AudioSampleRate);
+            }
+        }
+
+        #region 音频处理
+        public unsafe void Process(float* buffer, int length)
+        {
+            if (!_processorEnable)
+            {
+                return;
+            }
+            Debug.WriteLine("audioLength: {0}", length);
+            for (int i = 0; i < length; i++)
+            {
+                buffer[i] = 0.0f;
+            }
+        }
+
+        public unsafe void audio_TimerTick(object sender, EventArgs e)
+        { }
+
+        #endregion
+
+        #region IQ处理
         public unsafe void Process(Complex* buffer, int length)
         {
             if (!_processorEnable)
@@ -195,13 +262,13 @@ namespace SDRSharp.CDR
                 return;
             }
 
-            if (_currentSampleRate != SampleRate || _currentFrequency != _control.Frequency)
+            if (_currentSampleRate != _iq_SampleRate || _currentFrequency != _control.Frequency)
             {
-                _currentSampleRate = SampleRate;
+                _currentSampleRate = _iq_SampleRate;
                 _currentFrequency = _control.Frequency;
                 _reset_Demod = true;
 
-                _iqStream.Flush();
+                _iq_Stream.Flush();
 
                 if (_wavRecordEnable)
                 {
@@ -215,54 +282,70 @@ namespace SDRSharp.CDR
                     IQRecordEnable = true;
                 }
 
-                CDRDemodCaller.CDRDemodulation_Reset(cdrDemod);
+                CDRDemodCaller.CDRDemodulation_Reset(_cdr_Demod);
+
+                if (_cdr_iqWriter != IntPtr.Zero && _cdr_iqWriter != null)
+                {
+                    LiquidDspCaller.msresamp_cccf_destroy(_iq_filter);
+                }
+                float resampleRatio = (float)( CDRSampleRate / _iq_SampleRate);
+                _iq_filter = LiquidDspCaller.msresamp_cccf_create(resampleRatio, _filter_attenuation);
             }
 
-            _iqStream.Write(buffer, length);
+            _iq_Stream.Write(buffer, length);
         }
 
-
-        private Complex[] cdrframe = new Complex[(int)(SubFrameTime * CDRSampleRate + 100 )];
-        public unsafe void processorTimer_Tick(object sender, EventArgs e)
+        private Complex[] cdrframe = new Complex[(int)(SubFrameTime * CDRSampleRate + 100)];
+        int cdrFrameLength;
+        public unsafe void iq_TimerTick(object sender, EventArgs e)
         {
-            int subFrameLength = (int)(SubFrameTime * SampleRate);
-            int cdrFrameLength;
-            int readLength;
+            int subFrameLength = (int)(SubFrameTime * _currentSampleRate);
+           
+            int actual_iq_Length;
             int error;
-            if (_iqStream.Length > subFrameLength)
+            if (_iq_Stream.Length > subFrameLength)
             {
                 Complex[] subFrame = new Complex[subFrameLength];
-                fixed (Complex* buffer = subFrame, cdrBuffer = cdrframe)
+                fixed (Complex* iqBuffer = subFrame, cdrBuffer = cdrframe)
                 {
-                    readLength = _iqStream.Read(buffer, 0, subFrameLength);
-                    cdrFrameLength = Resample(buffer, readLength, cdrBuffer);
-                    Debug.WriteLine("CDRProcessor: Read {0},   Reasmaple {1},    Remain {2},", readLength, cdrFrameLength, _iqStream.Length);
+                    actual_iq_Length = _iq_Stream.Read(iqBuffer, 0, subFrameLength);
+                    // cdrFrameLength = Resample(iqBuffer, actual_iq_Length, cdrBuffer);
+                    error = LiquidDspCaller.msresamp_cccf_execute(_iq_filter, iqBuffer, actual_iq_Length, cdrBuffer, ref cdrFrameLength);
+                    
 
                     _reset_Demod = false;
 
-                    if (_iqRecordEnable && _iqWriter != null && _iqWriter != IntPtr.Zero)
+                    if (_iqRecordEnable && _cdr_iqWriter != null && _cdr_iqWriter != IntPtr.Zero)
                     {
                         SaveIQFile(cdrBuffer, cdrFrameLength);
                     }
 
-                    error = CDRDemodCaller.CDRDemodulation_Process(cdrDemod, cdrBuffer, cdrFrameLength);
+                    int bufferSize = CDRDemodCaller.CDRDemodulation_GetBufferSize(_cdr_Demod);
+                    error = CDRDemodCaller.CDRDemodulation_Process(_cdr_Demod, cdrBuffer, cdrFrameLength);
+
+                    DateTime currentTime = DateTime.Now;
+                    Debug.WriteLine($"{currentTime}: Read {actual_iq_Length},   Reasmaple {cdrFrameLength},    Remain {_iq_Stream.Length},  Buffer {bufferSize}");
+
+                    _cdr_UI.Sync_Done = (error >= 0) ? true : false;
+
                     if (error == 0)
                     {
-                        int num_Programme = CDRDemodCaller.CDRDemodulation_GetNumOfPrograms(cdrDemod);
+                        int num_Programme = CDRDemodCaller.CDRDemodulation_GetNumOfPrograms(_cdr_Demod);
                         for (int i = 0; i < num_Programme; i++)
                         {
-                            int audioLength = 0;
-                            byte* tempDra = CDRDemodCaller.CDRDemodulation_GetDraStream(cdrDemod, i, ref audioLength);
-                            if (audioLength > 0)
+                            int draLength = 0;
+                            byte* tempDra = CDRDemodCaller.CDRDemodulation_GetDraStream(_cdr_Demod, i, ref draLength);
+                            if (draLength > 0)
                             {
-                                error = CDRDemodCaller.draDecoder_Proccess(draDecoder[i], tempDra, audioLength);
+                                error = CDRDemodCaller.draDecoder_Proccess(_dra_Decoder[i], tempDra, draLength);
                                 if (error == 0)
                                 {
-                                    short* tempWave = CDRDemodCaller.draDecoder_GetAudioStream(draDecoder[i], ref audioLength);
-                                    
-                                    if (_wavRecordEnable && draWave[i] != IntPtr.Zero && draWave[i] != null)
+                                    int audioLength = 0;
+                                    short* tempWave = CDRDemodCaller.draDecoder_GetAudioStream(_dra_Decoder[i], ref audioLength);
+
+                                    if (_wavRecordEnable && _dra_waveFile[i] != IntPtr.Zero && _dra_waveFile[i] != null)
                                     {
-                                        CDRDemodCaller.wav_WriteShort(draWave[i], tempWave, audioLength);
+                                        CDRDemodCaller.wav_WriteShort(_dra_waveFile[i], tempWave, audioLength);
                                     }
                                 }
                             }
@@ -272,30 +355,32 @@ namespace SDRSharp.CDR
             }
         }
 
-        private short[] _cdr_IQ = new short[2 * (int)(SubFrameTime * CDRSampleRate + 100)];
+        #region IQ文件保存
+        private short[] _record_iqArray = new short[2 * (int)(SubFrameTime * CDRSampleRate + 100)];
         private unsafe void SaveIQFile(Complex* cdrframe, int cdrFrameLength)
         {
             for (int i = 0; i < cdrFrameLength; i++)
             {
-                _cdr_IQ[2 * i] = (short)(cdrframe[i].Real * 32768);
-                _cdr_IQ[2 * i + 1] = (short)(cdrframe[i].Imag * 32768);
+                _record_iqArray[2 * i] = (short)(cdrframe[i].Real * 32768);
+                _record_iqArray[2 * i + 1] = (short)(cdrframe[i].Imag * 32768);
             }
 
-            fixed (short* iq_buffer = _cdr_IQ)
+            fixed (short* iq_buffer = _record_iqArray)
             {
-                CDRDemodCaller.wav_WriteShort(_iqWriter, iq_buffer, cdrFrameLength * 2);
+                CDRDemodCaller.wav_WriteShort(_cdr_iqWriter, iq_buffer, cdrFrameLength * 2);
             }
 
             Debug.WriteLine("数据已成功写入文件。");
         }
+        #endregion
 
-        private Complex lastInputValue = 0;
-        private double nextOutputIndex = 0;
-        // 线性内插重采样方法
+        #region 线性内插重采样方法
+        private Complex _resample_lastInputValue = 0;
+        private double _resample_nextOutputIndex = 0;
         private unsafe int Resample(Complex* input, int inputLength, Complex* output)
         {
             double ratio = (double)(_currentSampleRate / CDRSampleRate);
-            double currentInputIndex = nextOutputIndex;
+            double currentInputIndex = _resample_nextOutputIndex;
 
             int outputLength = (int)Math.Floor((inputLength - currentInputIndex) / ratio);
 
@@ -305,7 +390,7 @@ namespace SDRSharp.CDR
                 int rightIndex = leftIndex + 1;
 
                 float fraction = (float)(currentInputIndex - leftIndex);
-                Complex leftValue = leftIndex == -1 ? lastInputValue : input[leftIndex];
+                Complex leftValue = leftIndex == -1 ? _resample_lastInputValue : input[leftIndex];
                 Complex rightValue = rightIndex < inputLength ? input[rightIndex] : 0;
 
                 // 线性内插公式
@@ -315,14 +400,15 @@ namespace SDRSharp.CDR
                 currentInputIndex += ratio;
             }
 
-            lastInputValue = input[inputLength - 1];
-            nextOutputIndex = currentInputIndex - inputLength;
+            _resample_lastInputValue = input[inputLength - 1];
+            _resample_nextOutputIndex = currentInputIndex - inputLength;
 
             return outputLength;
         }
+        #endregion
+
+        #endregion
     }
-
-
 
     public unsafe class CDRDemodCaller
     {
@@ -347,6 +433,9 @@ namespace SDRSharp.CDR
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern void CDRDemodulation_Release(IntPtr handle);
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern int CDRDemodulation_GetBufferSize(IntPtr handle);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern int CDRDemodulation_Process(IntPtr handle, Complex* iq, int length);
@@ -416,7 +505,7 @@ namespace SDRSharp.CDR
         public static extern void wav_CloseFile(IntPtr handle);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
-        public static extern int wav_WriteShort(IntPtr handle, short *data, int samples);
+        public static extern int wav_WriteShort(IntPtr handle, short* data, int samples);
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern void wav_SetChannels(IntPtr handle, int channels);
@@ -425,4 +514,19 @@ namespace SDRSharp.CDR
         public static extern void wav_SetSampleRate(IntPtr handle, int samplerate);
     }
 
+    public unsafe class LiquidDspCaller
+    {
+        private const string dllPath = @"libLiquid.dll";
+
+        const CallingConvention callingConvertion = CallingConvention.Cdecl;
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern IntPtr msresamp_cccf_create(float _r, float _as);
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern int msresamp_cccf_destroy(IntPtr _q);
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern int msresamp_cccf_execute(IntPtr _q, Complex* _x, int _nx, Complex* _y, ref int _ny);
+    }
 }

@@ -17,10 +17,28 @@ namespace SDRSharp.CDR
         private CDRProcessor _processor;
         private int _audioProgramID;
 
+        private bool _sync_Done;
+        public bool Sync_Done
+        {
+            set
+            {
+                if (_sync_Done != value)
+                {
+                    _sync_Done = value;
+                    label_locked.Invoke(new Action(() =>
+                    {
+                        label_locked.BackColor = _sync_Done ? Color.Green : Color.Red;
+                    }));
+                }
+            }
+        }
+
+
         public CDRPanel(CDRProcessor processor)
         {
             InitializeComponent();
             _processor = processor;
+            _processor.CDR_UI = this;
 
             checkBox_enable.Checked = _processor.Enabled;
             comboBox_SpectrumMode.SelectedIndex = 2;

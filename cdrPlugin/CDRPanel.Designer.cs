@@ -43,6 +43,8 @@
             this.checkBox_IQRecord = new System.Windows.Forms.CheckBox();
             this.label5 = new System.Windows.Forms.Label();
             this.checkBox_AudioRecord = new System.Windows.Forms.CheckBox();
+            this.label6 = new System.Windows.Forms.Label();
+            this.label_locked = new System.Windows.Forms.Label();
             this.mainTableLayoutPanel.SuspendLayout();
             this.groupBox_programSelector.SuspendLayout();
             this.SuspendLayout();
@@ -63,10 +65,12 @@
             this.mainTableLayoutPanel.Controls.Add(this.checkBox_IQRecord, 1, 5);
             this.mainTableLayoutPanel.Controls.Add(this.label5, 0, 6);
             this.mainTableLayoutPanel.Controls.Add(this.checkBox_AudioRecord, 1, 6);
+            this.mainTableLayoutPanel.Controls.Add(this.label6, 0, 7);
+            this.mainTableLayoutPanel.Controls.Add(this.label_locked, 1, 7);
             this.mainTableLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTableLayoutPanel.Location = new System.Drawing.Point(0, 0);
             this.mainTableLayoutPanel.Name = "mainTableLayoutPanel";
-            this.mainTableLayoutPanel.RowCount = 8;
+            this.mainTableLayoutPanel.RowCount = 9;
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
@@ -74,8 +78,11 @@
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.mainTableLayoutPanel.Size = new System.Drawing.Size(150, 225);
+            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.mainTableLayoutPanel.Size = new System.Drawing.Size(150, 322);
             this.mainTableLayoutPanel.TabIndex = 0;
             // 
             // checkBox_enable
@@ -201,6 +208,7 @@
             this.label4.Size = new System.Drawing.Size(41, 12);
             this.label4.TabIndex = 4;
             this.label4.Text = "录制IQ";
+            this.label4.Visible = false;
             // 
             // checkBox_IQRecord
             // 
@@ -210,6 +218,7 @@
             this.checkBox_IQRecord.Size = new System.Drawing.Size(15, 14);
             this.checkBox_IQRecord.TabIndex = 6;
             this.checkBox_IQRecord.UseVisualStyleBackColor = true;
+            this.checkBox_IQRecord.Visible = false;
             this.checkBox_IQRecord.CheckedChanged += new System.EventHandler(this.checkBox_IQRecord_CheckedChanged);
             // 
             // label5
@@ -231,13 +240,32 @@
             this.checkBox_AudioRecord.UseVisualStyleBackColor = true;
             this.checkBox_AudioRecord.CheckedChanged += new System.EventHandler(this.checkBox_AudioRecord_CheckedChanged);
             // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Location = new System.Drawing.Point(3, 194);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(41, 12);
+            this.label6.TabIndex = 4;
+            this.label6.Text = "帧同步";
+            // 
+            // label_locked
+            // 
+            this.label_locked.AutoSize = true;
+            this.label_locked.BackColor = System.Drawing.Color.Red;
+            this.label_locked.Location = new System.Drawing.Point(78, 194);
+            this.label_locked.Name = "label_locked";
+            this.label_locked.Size = new System.Drawing.Size(11, 12);
+            this.label_locked.TabIndex = 7;
+            this.label_locked.Text = " ";
+            // 
             // CDRPanel
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.Controls.Add(this.mainTableLayoutPanel);
             this.Name = "CDRPanel";
-            this.Size = new System.Drawing.Size(150, 225);
+            this.Size = new System.Drawing.Size(150, 322);
             this.mainTableLayoutPanel.ResumeLayout(false);
             this.mainTableLayoutPanel.PerformLayout();
             this.groupBox_programSelector.ResumeLayout(false);
@@ -263,5 +291,7 @@
         private System.Windows.Forms.CheckBox checkBox_IQRecord;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.CheckBox checkBox_AudioRecord;
+        private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Label label_locked;
     }
 }
