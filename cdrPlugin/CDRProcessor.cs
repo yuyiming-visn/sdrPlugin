@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define AUDIO_OUTPUT
+
+using System;
 using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,6 +20,7 @@ using SDRSharp.PanView;
 using SDRSharp.Radio;
 
 
+
 namespace SDRSharp.CDR
 {
     public class CDRProcessor : IRealProcessor, IIQProcessor, IDisposable
@@ -27,11 +30,11 @@ namespace SDRSharp.CDR
         private const int ProcessorInterval = 100;
         private Timer _iq_Timer;
         private readonly ComplexFifoStream _iq_Stream;
-        private Timer _audio_Timer;
         private readonly FloatFifoStream _audio_Stream;
 
         private const double SubFrameTime = 0.16;
         private const double CDRSampleRate = 816000;
+        private const double AudioSampleRate = 24000;
 
         private bool _reset_Demod;
 
@@ -85,7 +88,7 @@ namespace SDRSharp.CDR
 
                 if (_audio_filter != IntPtr.Zero && _audio_filter != null)
                 {
-                    LiquidDspCaller.msresamp_cccf_destroy(_audio_filter);
+                    LiquidDspCaller.msresamp_rrrf_destroy(_audio_filter);
                     _audio_filter = IntPtr.Zero;
                 }
             }
@@ -112,12 +115,6 @@ namespace SDRSharp.CDR
             _iq_Timer.Enabled = false;
             _iq_Stream = new ComplexFifoStream(BlockMode.None);
 
-
-            _audio_Timer = new Timer();
-            _audio_Timer.Tick += audio_TimerTick;
-            _audio_Timer.Interval = ProcessorInterval;
-            _audio_Timer.Enabled = false;
-            // _control.AudioSampleRate = 24000;
             _audio_Stream = new FloatFifoStream(BlockMode.None);
 
             _control.RegisterStreamHook(this, ProcessorType.FilteredAudioOutput);
@@ -199,7 +196,7 @@ namespace SDRSharp.CDR
                         string fileName = $"audio_{timestamp}_CH{i}.wav";
                         // 组合当前目录和文件名
                         string fullPath = Path.Combine(currentDirectory, fileName);
-                        _dra_waveFile[i] = CDRDemodCaller.wav_CreateFile(fullPath, 1, 24000, 16);
+                        _dra_waveFile[i] = CDRDemodCaller.wav_CreateFile(fullPath, 1, (int)AudioSampleRate, 16);
                     }
                 }
             }
@@ -222,7 +219,6 @@ namespace SDRSharp.CDR
 
         private double _currentSampleRate = 0;
         private long _currentFrequency = 0;
-
         private double _iq_SampleRate;
         public double SampleRate
         {
@@ -235,22 +231,48 @@ namespace SDRSharp.CDR
             }
         }
 
+        private int _audioProgramID = -100;
+        public int AudioProgramID
+        {
+            set { _audioProgramID = value; }
+        }
+
+
         #region 音频处理
+        double _currentAudioSa = 0;
+        private float[] audioWaveTemp = new float[(int)(0.1 * 100000 * 2)];
         public unsafe void Process(float* buffer, int length)
         {
             if (!_processorEnable)
             {
                 return;
             }
-            Debug.WriteLine("audioLength: {0}", length);
-            for (int i = 0; i < length; i++)
+
+#if AUDIO_OUTPUT
+            if (_currentAudioSa != _control.AudioSampleRate)
             {
-                buffer[i] = 0.0f;
+                if (_audio_filter != IntPtr.Zero && _audio_filter != null)
+                {
+                    LiquidDspCaller.msresamp_rrrf_destroy(_audio_filter);
+                }
+                float resampleRatio = (float)(_control.AudioSampleRate / AudioSampleRate);
+                _audio_filter = LiquidDspCaller.msresamp_rrrf_create(resampleRatio, _filter_attenuation);
             }
+
+
+            Debug.WriteLine($"audio: {_control.AudioSampleRate}, {length}, {_audio_Stream.Length}");
+
+            fixed (float* audioBuffer = audioWaveTemp)
+            {
+                int actual_audio_Length = _audio_Stream.Read(audioBuffer, 0, length/2);
+                if (_audioProgramID > 0)
+                {
+                    
+                }
+            }
+#endif
         }
 
-        public unsafe void audio_TimerTick(object sender, EventArgs e)
-        { }
 
         #endregion
 
@@ -284,7 +306,7 @@ namespace SDRSharp.CDR
 
                 CDRDemodCaller.CDRDemodulation_Reset(_cdr_Demod);
 
-                if (_cdr_iqWriter != IntPtr.Zero && _cdr_iqWriter != null)
+                if (_iq_filter != IntPtr.Zero && _iq_filter != null)
                 {
                     LiquidDspCaller.msresamp_cccf_destroy(_iq_filter);
                 }
@@ -295,8 +317,10 @@ namespace SDRSharp.CDR
             _iq_Stream.Write(buffer, length);
         }
 
+        private float[] audioWave = new float[(int)(SubFrameTime * AudioSampleRate * 16 + 100)];
         private Complex[] cdrframe = new Complex[(int)(SubFrameTime * CDRSampleRate + 100)];
         int cdrFrameLength;
+        private float[] audioOutput = new float[(int)(SubFrameTime * 100000 * 16 + 100)];
         public unsafe void iq_TimerTick(object sender, EventArgs e)
         {
             int subFrameLength = (int)(SubFrameTime * _currentSampleRate);
@@ -310,8 +334,7 @@ namespace SDRSharp.CDR
                 {
                     actual_iq_Length = _iq_Stream.Read(iqBuffer, 0, subFrameLength);
                     // cdrFrameLength = Resample(iqBuffer, actual_iq_Length, cdrBuffer);
-                    error = LiquidDspCaller.msresamp_cccf_execute(_iq_filter, iqBuffer, actual_iq_Length, cdrBuffer, ref cdrFrameLength);
-                    
+                    error = LiquidDspCaller.msresamp_cccf_execute(_iq_filter, iqBuffer, actual_iq_Length, cdrBuffer, ref cdrFrameLength);                    
 
                     _reset_Demod = false;
 
@@ -326,10 +349,17 @@ namespace SDRSharp.CDR
                     DateTime currentTime = DateTime.Now;
                     Debug.WriteLine($"{currentTime}: Read {actual_iq_Length},   Reasmaple {cdrFrameLength},    Remain {_iq_Stream.Length},  Buffer {bufferSize}");
 
-                    _cdr_UI.Sync_Done = (error >= 0) ? true : false;
+                    _cdr_UI.Sync_Done = (error == 0 || error == 10021) ? true : false;
 
                     if (error == 0)
                     {
+                        int nameLength = 0;
+                        int freq = 0;
+                        byte[] Name = new byte[256];
+                        int netID = CDRDemodCaller.CDRDemodulation_GetNetID(_cdr_Demod, Name, ref nameLength, ref freq);
+                        string netName = Encoding.UTF8.GetString(Name, 0, nameLength);
+                        _cdr_UI.NetID = $"{netID}::{netName}::{freq / 1000}kHz";
+
                         int num_Programme = CDRDemodCaller.CDRDemodulation_GetNumOfPrograms(_cdr_Demod);
                         for (int i = 0; i < num_Programme; i++)
                         {
@@ -347,6 +377,22 @@ namespace SDRSharp.CDR
                                     {
                                         CDRDemodCaller.wav_WriteShort(_dra_waveFile[i], tempWave, audioLength);
                                     }
+#if AUDIO_OUTPUT
+                                    if (_audioProgramID == i)
+                                    {
+                                        fixed (float* audioBuffer = audioWave, auBuffer = audioOutput)
+                                        {
+                                            int audioOutputLength = 0;
+                                            for (int j = 0; j < audioLength; j++)
+                                            {
+                                                audioWave[j] = tempWave[j] / 32768;
+                                            }
+                                            error = LiquidDspCaller.msresamp_rrrf_execute(_audio_filter, audioBuffer, audioLength, auBuffer, ref audioOutputLength);
+                                            _audio_Stream.Write(auBuffer, audioOutputLength);
+                                            Debug.WriteLine($"Resample: {_control.AudioSampleRate}, {_audio_Stream.Length}");
+                                        }
+                                    }
+#endif
                                 }
                             }
                         }
@@ -472,6 +518,8 @@ namespace SDRSharp.CDR
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern double CDRDemodulation_GetSampleRateOffset(IntPtr handle);
 
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern int CDRDemodulation_GetNetID(IntPtr handle, [Out] byte[] Name, ref int nameLength, ref int freq);
 
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
@@ -512,6 +560,8 @@ namespace SDRSharp.CDR
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern void wav_SetSampleRate(IntPtr handle, int samplerate);
+
+
     }
 
     public unsafe class LiquidDspCaller
@@ -528,5 +578,15 @@ namespace SDRSharp.CDR
 
         [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
         public static extern int msresamp_cccf_execute(IntPtr _q, Complex* _x, int _nx, Complex* _y, ref int _ny);
+
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern IntPtr msresamp_rrrf_create(float _r, float _as);
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern int msresamp_rrrf_destroy(IntPtr _q);
+
+        [DllImport(dllPath, CallingConvention = callingConvertion, SetLastError = false)]
+        public static extern int msresamp_rrrf_execute(IntPtr _q, float* _x, int _nx, float* _y, ref int _ny);
     }
 }

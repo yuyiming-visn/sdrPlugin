@@ -38,6 +38,7 @@
             this.groupBox_programSelector = new System.Windows.Forms.GroupBox();
             this.radioButton_Prog2 = new System.Windows.Forms.RadioButton();
             this.radioButton_Prog1 = new System.Windows.Forms.RadioButton();
+            this.radioButton_analog = new System.Windows.Forms.RadioButton();
             this.radioButton_Prog0 = new System.Windows.Forms.RadioButton();
             this.label4 = new System.Windows.Forms.Label();
             this.checkBox_IQRecord = new System.Windows.Forms.CheckBox();
@@ -45,12 +46,15 @@
             this.checkBox_AudioRecord = new System.Windows.Forms.CheckBox();
             this.label6 = new System.Windows.Forms.Label();
             this.label_locked = new System.Windows.Forms.Label();
+            this.label7 = new System.Windows.Forms.Label();
+            this.label_NetID = new System.Windows.Forms.Label();
             this.mainTableLayoutPanel.SuspendLayout();
             this.groupBox_programSelector.SuspendLayout();
             this.SuspendLayout();
             // 
             // mainTableLayoutPanel
             // 
+            this.mainTableLayoutPanel.AutoSize = true;
             this.mainTableLayoutPanel.ColumnCount = 2;
             this.mainTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.mainTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
@@ -61,12 +65,14 @@
             this.mainTableLayoutPanel.Controls.Add(this.comboBox_TransmissionMode, 1, 2);
             this.mainTableLayoutPanel.Controls.Add(this.label3, 0, 3);
             this.mainTableLayoutPanel.Controls.Add(this.groupBox_programSelector, 1, 3);
-            this.mainTableLayoutPanel.Controls.Add(this.label4, 0, 5);
-            this.mainTableLayoutPanel.Controls.Add(this.checkBox_IQRecord, 1, 5);
-            this.mainTableLayoutPanel.Controls.Add(this.label5, 0, 6);
-            this.mainTableLayoutPanel.Controls.Add(this.checkBox_AudioRecord, 1, 6);
-            this.mainTableLayoutPanel.Controls.Add(this.label6, 0, 7);
-            this.mainTableLayoutPanel.Controls.Add(this.label_locked, 1, 7);
+            this.mainTableLayoutPanel.Controls.Add(this.label4, 0, 4);
+            this.mainTableLayoutPanel.Controls.Add(this.checkBox_IQRecord, 1, 4);
+            this.mainTableLayoutPanel.Controls.Add(this.label5, 0, 5);
+            this.mainTableLayoutPanel.Controls.Add(this.checkBox_AudioRecord, 1, 5);
+            this.mainTableLayoutPanel.Controls.Add(this.label6, 0, 6);
+            this.mainTableLayoutPanel.Controls.Add(this.label_locked, 1, 6);
+            this.mainTableLayoutPanel.Controls.Add(this.label7, 0, 7);
+            this.mainTableLayoutPanel.Controls.Add(this.label_NetID, 1, 7);
             this.mainTableLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainTableLayoutPanel.Location = new System.Drawing.Point(0, 0);
             this.mainTableLayoutPanel.Name = "mainTableLayoutPanel";
@@ -77,10 +83,8 @@
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 25F));
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
             this.mainTableLayoutPanel.Size = new System.Drawing.Size(150, 322);
             this.mainTableLayoutPanel.TabIndex = 0;
@@ -154,56 +158,70 @@
             // 
             // groupBox_programSelector
             // 
+            this.groupBox_programSelector.AutoSize = true;
             this.groupBox_programSelector.Controls.Add(this.radioButton_Prog2);
             this.groupBox_programSelector.Controls.Add(this.radioButton_Prog1);
+            this.groupBox_programSelector.Controls.Add(this.radioButton_analog);
             this.groupBox_programSelector.Controls.Add(this.radioButton_Prog0);
             this.groupBox_programSelector.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox_programSelector.Location = new System.Drawing.Point(78, 77);
             this.groupBox_programSelector.Name = "groupBox_programSelector";
-            this.groupBox_programSelector.Size = new System.Drawing.Size(69, 74);
+            this.groupBox_programSelector.Size = new System.Drawing.Size(69, 118);
             this.groupBox_programSelector.TabIndex = 5;
             this.groupBox_programSelector.TabStop = false;
             // 
             // radioButton_Prog2
             // 
             this.radioButton_Prog2.AutoSize = true;
-            this.radioButton_Prog2.Location = new System.Drawing.Point(6, 58);
+            this.radioButton_Prog2.Location = new System.Drawing.Point(6, 82);
             this.radioButton_Prog2.Name = "radioButton_Prog2";
-            this.radioButton_Prog2.Size = new System.Drawing.Size(59, 16);
+            this.radioButton_Prog2.Size = new System.Drawing.Size(53, 16);
             this.radioButton_Prog2.TabIndex = 0;
             this.radioButton_Prog2.TabStop = true;
-            this.radioButton_Prog2.Text = "Prog 2";
+            this.radioButton_Prog2.Text = "CDR 2";
             this.radioButton_Prog2.UseVisualStyleBackColor = true;
             this.radioButton_Prog2.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
             // 
             // radioButton_Prog1
             // 
             this.radioButton_Prog1.AutoSize = true;
-            this.radioButton_Prog1.Location = new System.Drawing.Point(6, 36);
+            this.radioButton_Prog1.Location = new System.Drawing.Point(6, 60);
             this.radioButton_Prog1.Name = "radioButton_Prog1";
-            this.radioButton_Prog1.Size = new System.Drawing.Size(59, 16);
+            this.radioButton_Prog1.Size = new System.Drawing.Size(53, 16);
             this.radioButton_Prog1.TabIndex = 0;
             this.radioButton_Prog1.TabStop = true;
-            this.radioButton_Prog1.Text = "Prog 1";
+            this.radioButton_Prog1.Text = "CDR 1";
             this.radioButton_Prog1.UseVisualStyleBackColor = true;
             this.radioButton_Prog1.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
+            // 
+            // radioButton_analog
+            // 
+            this.radioButton_analog.AutoSize = true;
+            this.radioButton_analog.Location = new System.Drawing.Point(6, 16);
+            this.radioButton_analog.Name = "radioButton_analog";
+            this.radioButton_analog.Size = new System.Drawing.Size(35, 16);
+            this.radioButton_analog.TabIndex = 0;
+            this.radioButton_analog.TabStop = true;
+            this.radioButton_analog.Text = "FM";
+            this.radioButton_analog.UseVisualStyleBackColor = true;
+            this.radioButton_analog.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
             // 
             // radioButton_Prog0
             // 
             this.radioButton_Prog0.AutoSize = true;
-            this.radioButton_Prog0.Location = new System.Drawing.Point(6, 14);
+            this.radioButton_Prog0.Location = new System.Drawing.Point(6, 38);
             this.radioButton_Prog0.Name = "radioButton_Prog0";
-            this.radioButton_Prog0.Size = new System.Drawing.Size(59, 16);
+            this.radioButton_Prog0.Size = new System.Drawing.Size(53, 16);
             this.radioButton_Prog0.TabIndex = 0;
             this.radioButton_Prog0.TabStop = true;
-            this.radioButton_Prog0.Text = "Prog 0";
+            this.radioButton_Prog0.Text = "CDR 0";
             this.radioButton_Prog0.UseVisualStyleBackColor = true;
             this.radioButton_Prog0.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
             // 
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(3, 154);
+            this.label4.Location = new System.Drawing.Point(3, 198);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(41, 12);
             this.label4.TabIndex = 4;
@@ -213,7 +231,7 @@
             // checkBox_IQRecord
             // 
             this.checkBox_IQRecord.AutoSize = true;
-            this.checkBox_IQRecord.Location = new System.Drawing.Point(78, 157);
+            this.checkBox_IQRecord.Location = new System.Drawing.Point(78, 201);
             this.checkBox_IQRecord.Name = "checkBox_IQRecord";
             this.checkBox_IQRecord.Size = new System.Drawing.Size(15, 14);
             this.checkBox_IQRecord.TabIndex = 6;
@@ -224,7 +242,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(3, 174);
+            this.label5.Location = new System.Drawing.Point(3, 218);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(53, 12);
             this.label5.TabIndex = 4;
@@ -233,7 +251,7 @@
             // checkBox_AudioRecord
             // 
             this.checkBox_AudioRecord.AutoSize = true;
-            this.checkBox_AudioRecord.Location = new System.Drawing.Point(78, 177);
+            this.checkBox_AudioRecord.Location = new System.Drawing.Point(78, 221);
             this.checkBox_AudioRecord.Name = "checkBox_AudioRecord";
             this.checkBox_AudioRecord.Size = new System.Drawing.Size(15, 14);
             this.checkBox_AudioRecord.TabIndex = 6;
@@ -243,7 +261,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(3, 194);
+            this.label6.Location = new System.Drawing.Point(3, 238);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(41, 12);
             this.label6.TabIndex = 4;
@@ -253,11 +271,29 @@
             // 
             this.label_locked.AutoSize = true;
             this.label_locked.BackColor = System.Drawing.Color.Red;
-            this.label_locked.Location = new System.Drawing.Point(78, 194);
+            this.label_locked.Location = new System.Drawing.Point(78, 238);
             this.label_locked.Name = "label_locked";
             this.label_locked.Size = new System.Drawing.Size(11, 12);
             this.label_locked.TabIndex = 7;
             this.label_locked.Text = " ";
+            // 
+            // label7
+            // 
+            this.label7.AutoSize = true;
+            this.label7.Location = new System.Drawing.Point(3, 258);
+            this.label7.Name = "label7";
+            this.label7.Size = new System.Drawing.Size(59, 12);
+            this.label7.TabIndex = 4;
+            this.label7.Text = "SDIS 网络";
+            // 
+            // label_NetID
+            // 
+            this.label_NetID.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.label_NetID.Location = new System.Drawing.Point(78, 258);
+            this.label_NetID.Name = "label_NetID";
+            this.label_NetID.Size = new System.Drawing.Size(69, 25);
+            this.label_NetID.TabIndex = 4;
+            this.label_NetID.Text = "aaaaa";
             // 
             // CDRPanel
             // 
@@ -271,6 +307,7 @@
             this.groupBox_programSelector.ResumeLayout(false);
             this.groupBox_programSelector.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -293,5 +330,8 @@
         private System.Windows.Forms.CheckBox checkBox_AudioRecord;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label_locked;
+        private System.Windows.Forms.RadioButton radioButton_analog;
+        private System.Windows.Forms.Label label7;
+        private System.Windows.Forms.Label label_NetID;
     }
 }

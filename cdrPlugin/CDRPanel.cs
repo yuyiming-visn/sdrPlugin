@@ -17,6 +17,17 @@ namespace SDRSharp.CDR
         private CDRProcessor _processor;
         private int _audioProgramID;
 
+        public CDRPanel(CDRProcessor processor)
+        {
+            InitializeComponent();
+            _processor = processor;
+            _processor.CDR_UI = this;
+
+            checkBox_enable.Checked = _processor.Enabled;
+            comboBox_SpectrumMode.SelectedIndex = 2;
+            comboBox_TransmissionMode.SelectedIndex = 0;
+        }
+
         private bool _sync_Done;
         public bool Sync_Done
         {
@@ -33,17 +44,22 @@ namespace SDRSharp.CDR
             }
         }
 
-
-        public CDRPanel(CDRProcessor processor)
+        private string _netID;
+        public string NetID
         {
-            InitializeComponent();
-            _processor = processor;
-            _processor.CDR_UI = this;
-
-            checkBox_enable.Checked = _processor.Enabled;
-            comboBox_SpectrumMode.SelectedIndex = 2;
-            comboBox_TransmissionMode.SelectedIndex = 0;
+            set
+            {
+                if (_netID != value)
+                {
+                    _netID = value;
+                    label_NetID.Invoke(new Action(() =>
+                    {
+                        label_NetID.Text = _netID;
+                    }));
+                }
+            }
         }
+
 
         private void comboBox_SpectrumMode_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -72,16 +88,22 @@ namespace SDRSharp.CDR
 
             switch (((RadioButton)sender).Name)
             {
-                case "_guiProg0":
+                case "radioButton_Prog0":
                     _audioProgramID = 0;
                     break;
-                case "_guiProg1":
+                case "radioButton_Prog1":
                     _audioProgramID = 1;
                     break;
-                case "_guiProg2":
+                case "radioButton_Prog2":
                     _audioProgramID = 2;
                     break;
+                case "radioButton_analog":
+                default:
+                    _audioProgramID = -1;
+                    break;
             }
+
+            _processor.AudioProgramID = _audioProgramID;
             // 清空上一个节目的音频缓存
             // AudioStop();
             // AudioStart();
