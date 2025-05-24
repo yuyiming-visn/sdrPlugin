@@ -103,7 +103,7 @@ namespace SDRSharp.CDR
                     break;
             }
 
-            _processor.AudioProgramID = _audioProgramID;
+            _processor.AudioProgramID = _audioProgramID; 
             // 清空上一个节目的音频缓存
             // AudioStop();
             // AudioStart();
@@ -118,5 +118,6 @@ namespace SDRSharp.CDR
         {
             _processor.WavRecordEnable = checkBox_AudioRecord.Checked; 
         }
+
     }
 }

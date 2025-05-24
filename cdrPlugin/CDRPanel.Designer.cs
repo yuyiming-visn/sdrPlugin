@@ -84,7 +84,7 @@
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 25F));
+            this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
             this.mainTableLayoutPanel.Size = new System.Drawing.Size(150, 322);
             this.mainTableLayoutPanel.TabIndex = 0;
@@ -177,7 +177,6 @@
             this.radioButton_Prog2.Name = "radioButton_Prog2";
             this.radioButton_Prog2.Size = new System.Drawing.Size(53, 16);
             this.radioButton_Prog2.TabIndex = 0;
-            this.radioButton_Prog2.TabStop = true;
             this.radioButton_Prog2.Text = "CDR 2";
             this.radioButton_Prog2.UseVisualStyleBackColor = true;
             this.radioButton_Prog2.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
@@ -189,7 +188,6 @@
             this.radioButton_Prog1.Name = "radioButton_Prog1";
             this.radioButton_Prog1.Size = new System.Drawing.Size(53, 16);
             this.radioButton_Prog1.TabIndex = 0;
-            this.radioButton_Prog1.TabStop = true;
             this.radioButton_Prog1.Text = "CDR 1";
             this.radioButton_Prog1.UseVisualStyleBackColor = true;
             this.radioButton_Prog1.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
@@ -197,6 +195,7 @@
             // radioButton_analog
             // 
             this.radioButton_analog.AutoSize = true;
+            this.radioButton_analog.Checked = true;
             this.radioButton_analog.Location = new System.Drawing.Point(6, 16);
             this.radioButton_analog.Name = "radioButton_analog";
             this.radioButton_analog.Size = new System.Drawing.Size(35, 16);
@@ -213,7 +212,6 @@
             this.radioButton_Prog0.Name = "radioButton_Prog0";
             this.radioButton_Prog0.Size = new System.Drawing.Size(53, 16);
             this.radioButton_Prog0.TabIndex = 0;
-            this.radioButton_Prog0.TabStop = true;
             this.radioButton_Prog0.Text = "CDR 0";
             this.radioButton_Prog0.UseVisualStyleBackColor = true;
             this.radioButton_Prog0.CheckedChanged += new System.EventHandler(this.Program_CheckedChanged);
@@ -226,7 +224,6 @@
             this.label4.Size = new System.Drawing.Size(41, 12);
             this.label4.TabIndex = 4;
             this.label4.Text = "录制IQ";
-            this.label4.Visible = false;
             // 
             // checkBox_IQRecord
             // 
@@ -236,7 +233,6 @@
             this.checkBox_IQRecord.Size = new System.Drawing.Size(15, 14);
             this.checkBox_IQRecord.TabIndex = 6;
             this.checkBox_IQRecord.UseVisualStyleBackColor = true;
-            this.checkBox_IQRecord.Visible = false;
             this.checkBox_IQRecord.CheckedChanged += new System.EventHandler(this.checkBox_IQRecord_CheckedChanged);
             // 
             // label5
@@ -291,9 +287,8 @@
             this.label_NetID.Dock = System.Windows.Forms.DockStyle.Fill;
             this.label_NetID.Location = new System.Drawing.Point(78, 258);
             this.label_NetID.Name = "label_NetID";
-            this.label_NetID.Size = new System.Drawing.Size(69, 25);
+            this.label_NetID.Size = new System.Drawing.Size(69, 50);
             this.label_NetID.TabIndex = 4;
-            this.label_NetID.Text = "aaaaa";
             // 
             // CDRPanel
             // 
