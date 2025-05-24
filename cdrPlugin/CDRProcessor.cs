@@ -40,7 +40,6 @@ namespace SDRSharp.CDR
         private IntPtr _cdr_Demod;
         private IntPtr[] _dra_Decoder = new IntPtr[3];
         private IntPtr[] _dra_waveFile = new IntPtr[3];
-        private IntPtr _dra_waveFile_debug;
         private string[] _dra_waveName = new string[3];
 
         private IntPtr _iq_filter;
@@ -90,12 +89,6 @@ namespace SDRSharp.CDR
                     LiquidDspCaller.msresamp_rrrf_destroy(_audio_filter);
                     _audio_filter = IntPtr.Zero;
                 }
-
-                if (_dra_waveFile_debug != IntPtr.Zero && _dra_waveFile_debug != null)
-                {
-                    CDRDemodCaller.wav_CloseFile(_dra_waveFile_debug);
-                    _dra_waveFile_debug = IntPtr.Zero;
-                }
             }
         }
 
@@ -103,7 +96,6 @@ namespace SDRSharp.CDR
         {
             _iq_filter = IntPtr.Zero;
             _audio_filter = IntPtr.Zero;
-            _dra_waveFile_debug = IntPtr.Zero;
 
             _cdr_Demod = CDRDemodCaller.CDRDemodulation_Init();
             for (int i = 0; i < _dra_Decoder.Length; i++)
@@ -188,12 +180,6 @@ namespace SDRSharp.CDR
                     }
                 }
 
-                if (_dra_waveFile_debug != IntPtr.Zero && _dra_waveFile_debug != null)
-                {
-                    CDRDemodCaller.wav_CloseFile(_dra_waveFile_debug);
-                    _dra_waveFile_debug = IntPtr.Zero;
-                }
-
                 if (_wavRecordEnable && _processorEnable)
                 {
                     // 获取当前时间戳
@@ -208,12 +194,6 @@ namespace SDRSharp.CDR
                         string fullPath = Path.Combine(currentDirectory, fileName);
                         _dra_waveFile[i] = CDRDemodCaller.wav_CreateFile(fullPath, 1, (int)AudioSampleRate, 16);
                     }
-
-                    // 构造文件名
-                    string fileName_debug = $"audio_{timestamp}_debug.wav";
-                    // 组合当前目录和文件名
-                    string fullPath_debug = Path.Combine(currentDirectory, fileName_debug);
-                    _dra_waveFile_debug = CDRDemodCaller.wav_CreateFile(fullPath_debug, 1, (int)_currentAudioRate, 16);
                 }
             }
         }
@@ -305,7 +285,6 @@ namespace SDRSharp.CDR
         private Complex[] cdrframe = new Complex[(int)(SubFrameTime * CDRSampleRate + 100)];
         private int cdrFrameLength;
         private float[] audioOutput = new float[(int)(SubFrameTime * 100000 * 16 + 100)];
-        private short[] audioOutput_debug = new short[(int)(SubFrameTime * 100000 * 16 + 100)];
         public unsafe void iq_TimerTick(object sender, EventArgs e)
         {
             if (_currentSampleRate != _iq_SampleRate || _currentFrequency != _control.Frequency)
@@ -415,20 +394,7 @@ namespace SDRSharp.CDR
                                             }
                                             error = LiquidDspCaller.msresamp_rrrf_execute(_audio_filter, audioBuffer, audioLength, auBuffer, ref audioOutputLength);
                                             _audio_Stream.Write(auBuffer, audioOutputLength);
-                                            Debug.WriteLine($"Resample: {_control.AudioSampleRate}, {_audio_Stream.Length}");
-
-                                            for (int j = 0; j < audioOutputLength; j++)
-                                            {
-                                                audioOutput_debug[j] = (short)(auBuffer[j] * 32768);
-                                            }
-
-                                            if (_wavRecordEnable && _dra_waveFile_debug != IntPtr.Zero && _dra_waveFile_debug != null)
-                                            {
-                                                fixed (short* audioOutput_debug_buffer = audioOutput_debug)
-                                                {
-                                                    CDRDemodCaller.wav_WriteShort(_dra_waveFile_debug, audioOutput_debug_buffer, audioOutputLength);
-                                                }
-                                            }
+                                            Debug.WriteLine($"Resample: {_control.AudioSampleRate}, {_audio_Stream.Length}");     
                                         }
                                     }
                                 }
